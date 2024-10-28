@@ -59,10 +59,11 @@ module.exports = Object.freeze({
     CDE_TERM: "Term",
     CDE_PERMISSIVE_VALUES: "PermissibleValues",
     DEF_VERSION: "versions",
+    SYNONYM_COLLECTION: "synonyms",
   
     TERM_CODE: "Code",
     TERM_VERSION: "Version",
 
-    MAX_ALLOWED_LENGTH: 255
+    MAX_ALLOWED_LENGTH: 255,
   });
   

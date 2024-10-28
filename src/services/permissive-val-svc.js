@@ -35,7 +35,7 @@ class PermissiveValueSvc {
             Code, 
             Version
         } = property[CDE_TERM]
-        if (Code && Version) {
+        if (Code) {
             const cdeData = await this.mongoDAO.getCDEPermissibleValues(Code, Version);
             if (cdeData) {
                 const temp = cdeData?.[CDE_PERMISSIVE_VALUES];
@@ -54,6 +54,10 @@ class PermissiveValueSvc {
             return {status: "passed", input_value: input_value, suggestion_type: "NCIt", permissive_value: [{"value": match, "score": 1.00}]};
         }
         // step 2 check synonym
+        const similarWord = await this.mongoDAO.findSynonyms(input_value);
+        if (similarWord) {
+            return {status: "failed", input_value: input_value, suggestion_type: "NCIt", permissive_value: [{"value": similarWord.equivalent_term, "score": 1.00}]};
+        }
 
         // step 3 check AI, semantic similarity
         

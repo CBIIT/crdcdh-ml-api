@@ -1,6 +1,6 @@
 const MongoClient = require('mongodb').MongoClient;
 
-const {CDE_COLLECTION, CDE_CODE, CDE_VERSION} = require("../common/constants")
+const {CDE_COLLECTION, CDE_CODE, CDE_VERSION, SYNONYM_COLLECTION} = require("../common/constants")
 
 class MongoDAO {
     constructor(connectionString, dbName) {
@@ -8,7 +8,10 @@ class MongoDAO {
         this.client = null;
         this.dbName = dbName;
     }
-
+    /**
+     * connect
+     * @returns 
+     */
     async connect() {
         try {
             this.client = new MongoClient(this.connectionString, { useNewUrlParser: true, useUnifiedTopology: true });
@@ -19,7 +22,9 @@ class MongoDAO {
         }
         return this.client;
     }
-
+    /**
+     * disconnect
+     */
     async disconnect() {
         try {
             if (this.client) {
@@ -30,20 +35,26 @@ class MongoDAO {
             console.error('Error disconnecting from MongoDB:', err);
         }
     }
-
+    /**
+     * getCDEPermissibleValues
+     * @param {*} cdeCode 
+     * @param {*} cdeVersion 
+     * @returns 
+     */
     async getCDEPermissibleValues(cdeCode, cdeVersion) {
         const db = this.client.db(this.dbName);
         const dataCollection = db.collection(CDE_COLLECTION);
-        const query = { CDECode: cdeCode, CDEVersion: cdeVersion };
+        let query = {"CDECode": cdeCode};
+        if (cdeVersion)
+            query["CDEVersion"] = cdeVersion
+
         try {
             // Find the CDE document based on code and version
-            const cdeData = await dataCollection.findOne(query);
-    
+            const cdeData = await dataCollection.findOne(query, {"CDEVersion": -1});
             // Log an error if no data is found
             if (!cdeData) {
                 console.error(`No permissible values found for CDE code ${cdeCode} with version ${cdeVersion}`);
             }
-    
             return cdeData;
     
         } catch (err) {
@@ -57,9 +68,21 @@ class MongoDAO {
             return null;
         }
     }
-
-    
-    
+    /**
+     * find_synonyms
+     * @param {*} word 
+     * @returns 
+     */
+    async findSynonyms(word) {
+        const db = this.client.db(this.dbName);
+        const synonymsCollection = db.collection(SYNONYM_COLLECTION);
+        try {
+            return await synonymsCollection.findOne({ "synonym_term": word }, { "collation": { "locale": "en", strength: 1 } } );
+        } catch (err) {
+            console.error(`Error finding synonyms for ${word}: ${err}`);
+            return null;
+        }
+    }
 }
 
 async function MongoDBHealthCheck(connectionString){
