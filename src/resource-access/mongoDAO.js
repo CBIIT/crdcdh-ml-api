@@ -46,17 +46,16 @@ class MongoDAO {
         const dataCollection = db.collection(CDE_COLLECTION);
         let query = {"CDECode": cdeCode};
         if (cdeVersion)
-            query["CDEVersion"] = cdeVersion
+            query["CDEVersion"] = cdeVersion;
 
         try {
-            // Find the CDE document based on code and version
+            // Find the CDE document based on code and version, if version is null return last version.
             const cdeData = await dataCollection.findOne(query, {"CDEVersion": -1});
             // Log an error if no data is found
             if (!cdeData) {
                 console.error(`No permissible values found for CDE code ${cdeCode} with version ${cdeVersion}`);
             }
             return cdeData;
-    
         } catch (err) {
             if (err.name === 'MongoError') {
                 // Handle any MongoDB-related errors
@@ -77,7 +76,8 @@ class MongoDAO {
         const db = this.client.db(this.dbName);
         const synonymsCollection = db.collection(SYNONYM_COLLECTION);
         try {
-            return await synonymsCollection.findOne({ "synonym_term": word }, { "collation": { "locale": "en", strength: 1 } } );
+            // find one synonym with the input word in case-insensitive
+            return await synonymsCollection.findOne({ "synonym_term": word }, { "collation": { "locale": "en", strength: 1 }});
         } catch (err) {
             console.error(`Error finding synonyms for ${word}: ${err}`);
             return null;
