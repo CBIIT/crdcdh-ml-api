@@ -77,7 +77,7 @@ class MongoDAO {
         const synonymsCollection = db.collection(SYNONYM_COLLECTION);
         try {
             // find one synonym with the input word in case-insensitive
-            return await synonymsCollection.findOne({ "synonym_term": word }, { "collation": { "locale": "en", strength: 1 }});
+            return await synonymsCollection.find({ "synonym_term": word }, { "collation": { "locale": "en", strength: 1 }}).toArray();
         } catch (err) {
             console.error(`Error finding synonyms for ${word}: ${err}`);
             return null;

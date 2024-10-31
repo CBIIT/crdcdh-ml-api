@@ -54,22 +54,30 @@ class PermissiveValueSvc {
             return {status: "passed", input_value: input_value, suggestion_type: "NCIt", permissive_value: [{"value": match, "score": 1.00}]};
         }
         // step 2 check synonym
-        const similarWord = await this.mongoDAO.findSynonyms(input_value);
-        if (similarWord) {
-            return {status: "failed", input_value: input_value, suggestion_type: "NCIt", permissive_value: [{"value": similarWord.equivalent_term, "score": 1.00}]};
+        const synonyms = await this.mongoDAO.findSynonyms(input_value);
+        if (synonyms && synonyms.length > 0) {
+            const synonym_terms = synonyms.map(s=>s.equivalent_term);
+            const similarWords = permissive_values.filter(value => synonym_terms.includes(value.trim()));
+            if (similarWords && similarWords.length > 0) {
+                let suggests = [];
+                for (const item of similarWords) {
+                    suggests.push({"value": item, "score": 1.00});
+                }
+                return {status: "found match", input_value: input_value, suggestion_type: "NCIt", permissive_value: suggests};
+            }
         }
 
         // step 3 check AI, semantic similarity
         
-        return {status: "failed", input_value: input_value, suggestion_type: "NCIt", permissive_value: null};
+        return {status: "no match found", input_value: input_value, suggestion_type: "NCIt", permissive_value: null};
     }
 
 }
 
 async function searchFromPermissiveValues(awsClient, word, permissiveValues, topK = 10) {
     /*
-     * Search similar words for a given word from permissive values
-     */
+    * Search similar words for a given word from permissive values
+    */
     let response = null;
     let queryWord = preprocessText(word);
     let queryWords = [queryWord];
@@ -106,9 +114,6 @@ async function searchFromPermissiveValues(awsClient, word, permissiveValues, top
         console.error(error);
     }
 }
-
-module.exports = { searchFromPermissiveValues };
-
 
 const preprocessText = (text) => {
     // Convert text to lowercase

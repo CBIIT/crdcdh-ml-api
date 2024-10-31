@@ -4,6 +4,7 @@ const { CDE_TERM, ALLOWED_VALUES, DEF_VERSION} = require('./constants');
 const config = require('../config');
 const YML_FILE_EXT = ["yml", "yaml"];
 const DEF_MODEL_PROP_FILE = "prop-file";
+const DEF_MODEL_FILES = "model-files";
 const PROP_DEFINITIONS = 'PropDefinitions';
 const PROP_TYPE = 'Type';
 const PROP_ENUM = 'Enum';
@@ -28,15 +29,6 @@ class TermReader {
     async init() {
         let msg = null;
         this.models_def = await this.webClient.downloadFileToDict(this.models_def_file_path);
-        // this.models_def = await axios.get(this.models_def_file_path)
-        //     .then(response => {
-               
-        //         return response.data;
-               
-        //     })
-        //     .catch(error => {
-        //         console.error('Error:', error);
-        //     }); 
         if (typeof this.models_def !== 'object') {
             msg = `Invalid models definition at "${this.models_def_file_path}"!`;
             console.error(msg);
@@ -58,12 +50,15 @@ class TermReader {
      * Create a CDE term dict by parsing yaml model property file
      */
     async create_model(data_common, version) {
-        const dc = data_common.toUpperCase();
+        const dc = data_common;
         const v = this.models_def[dc];
         // const model_dir = this.model_def_dir + "/" + path.join(dc, version);
-        const props_file_name = `${this.model_def_dir.trim()}/${dc.trim()}/${version.trim()}/${v[DEF_MODEL_PROP_FILE].trim()}`;
+        // const props_file_name = `${this.model_def_dir.trim()}/${dc.trim()}/${version.trim()}/${v[DEF_MODEL_PROP_FILE].trim()}`;
+        const model_dir = `${this.model_def_dir.trim()}/${dc.trim()}/${version.trim()}`;
+        //process model files for the data common
+        const file_names =  v[DEF_MODEL_FILES].map(file => `${model_dir}/${file.trim()}`);
         try{
-            const [result, properties_term, msg] = await parse_model_props(props_file_name, this.webClient);
+            const [result, properties_term, msg] = await parse_model_props(file_names, this.webClient);
             if (!result) {
                 console.error(msg);
                 return;
@@ -80,29 +75,35 @@ class TermReader {
     }
 }
 
- 
 
 /**
  * Parse model property file
  */
-async function parse_model_props(model_props_file, webClient) {
-    let properties = null;
+async function parse_model_props(model_props_files, webClient) {
+    let properties = {};
     let permissive_value_dic = {};
     let msg = null;
 
     try {
-        console.info(`Reading prop file: ${model_props_file} ...`);
-        if (model_props_file && model_props_file.includes('.') && YML_FILE_EXT.includes(model_props_file.split('.').pop().toLowerCase())) {
-            properties = await webClient.downloadFileToDict(model_props_file);
-            if (!properties) {
-                msg = `Invalid model properties file: ${model_props_file}!`;
-                console.error(msg);
-                return [false, null, msg];
+        for(const model_props_file of model_props_files) {
+            console.info(`Reading prop file: ${model_props_file} ...`);
+            if (model_props_file && model_props_file.includes('.') && YML_FILE_EXT.includes(model_props_file.split('.').pop().toLowerCase())) {
+                const props = await webClient.downloadFileToDict(model_props_file);
+                if (!props) {
+                    msg = `Invalid model properties file: ${model_props_file}!`;
+                    console.error(msg);
+                    return [false, null, msg];
+                }
+                if (props[PROP_DEFINITIONS])
+                {
+                    // Object.assign(properties, props[PROP_DEFINITIONS]);
+                    properties = {...properties, ...props[PROP_DEFINITIONS]}; // merge all properties
+                }
             }
-            properties = properties[PROP_DEFINITIONS];
         }
+        
     } catch (e) {
-        console.error(`Failed to read yaml file to dict: ${model_props_file}!`);
+        console.error(`Failed to read yaml file to dict: ${model_props_files}!`);
         throw e;
     }
     let permissive_value;
@@ -154,7 +155,7 @@ const _get_item_type = (prop_enum) => {
 };
 
 const model_key = (data_common, version) => {
-    return `${data_common.toUpperCase()}_${version}`
+    return `${data_common}_${version}`
 }
     
 
