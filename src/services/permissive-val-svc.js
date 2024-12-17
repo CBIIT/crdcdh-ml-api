@@ -11,7 +11,11 @@ class PermissiveValueSvc {
     toString() {
         return this.value;
     }
-
+    /**
+     * API: getPermissiveValue
+     * @param {*} param 
+     * @returns 
+     */
     async getPermissiveValue(param) {
         const {
             source,
@@ -53,39 +57,52 @@ class PermissiveValueSvc {
         if (match) {
             return {status: "passed", input_value: input_value, suggestion_type: "NCIt", permissive_value: [{"value": match, "score": 1.00}]};
         }
+        let suggests = [];
         // step 2 check synonym
         const synonyms = await this.mongoDAO.findSynonyms(input_value);
         if (synonyms && synonyms.length > 0) {
             const synonym_terms = synonyms.map(s=>s.equivalent_term);
             const similarWords = permissive_values.filter(value => synonym_terms.includes(value.trim()));
             if (similarWords && similarWords.length > 0) {
-                let suggests = [];
+                
                 for (const item of similarWords) {
                     suggests.push({"value": item, "score": 1.00});
                 }
                 return {status: "found match", input_value: input_value, suggestion_type: "NCIt", permissive_value: suggests};
             }
         }
-
         // step 3 check AI, semantic similarity
+        const similarWords = await searchFromPermissiveValues(this.awsClient, input_value, permissive_values);
+        if (similarWords && similarWords.length > 0) {
+            suggests = similarWords.map(item => {
+                return {"value": item[0], "score": item[1]};
+            })
+            return {status: "No match found", input_value: input_value, suggestion_type: "AI", permissive_value: suggests};
+        }
         
-        return {status: "no match found", input_value: input_value, suggestion_type: "NCIt", permissive_value: null};
+        return {status: "no match found", input_value: input_value, suggestion_type: "AI", permissive_value: null};
     }
 
 }
 
+/**
+ * searchFromPermissiveValues
+ * @param {*} awsClient 
+ * @param {*} word 
+ * @param {*} permissiveValues 
+ * @param {*} topK 
+ * @returns 
+ */
 async function searchFromPermissiveValues(awsClient, word, permissiveValues, topK = 10) {
     /*
     * Search similar words for a given word from permissive values
     */
-    let response = null;
     let queryWord = preprocessText(word);
     let queryWords = [queryWord];
     let fromWords = permissiveValues.map(value => preprocessText(value));
     queryWords = [...queryWords, ...fromWords];
 
     let wordVec = null;
-    let similarWord = [];
 
     try {
         // Invoke the endpoint and wait for the response
@@ -115,6 +132,11 @@ async function searchFromPermissiveValues(awsClient, word, permissiveValues, top
     }
 }
 
+/**
+ * 
+ * @param {*} text 
+ * @returns 
+ */
 const preprocessText = (text) => {
     // Convert text to lowercase
     text = text ? text.toLowerCase() : '';
