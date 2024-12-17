@@ -77,7 +77,7 @@ class PermissiveValueSvc {
             suggests = similarWords.map(item => {
                 return {"value": item[0], "score": item[1]};
             })
-            return {status: "No match found", input_value: input_value, suggestion_type: "AI", permissive_value: suggests};
+            return {status: "no match found", input_value: input_value, suggestion_type: "AI", permissive_value: suggests};
         }
         
         return {status: "no match found", input_value: input_value, suggestion_type: "AI", permissive_value: null};
