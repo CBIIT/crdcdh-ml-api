@@ -45,7 +45,10 @@ class PermissiveValueSvc {
                 const temp = cdeData?.[CDE_PERMISSIVE_VALUES];
                 // check if empty cde permissive values
                 if (temp && temp.length > 0) {
-                    permissive_values = temp;
+                    // check if contains http or https
+                    const test = temp.find(i=> i.startsWith("http")) ;
+                    if (!test)
+                        permissive_values = temp;
                 }
             }
         }
@@ -124,7 +127,7 @@ async function searchFromPermissiveValues(awsClient, word, permissiveValues, top
         const similarWords = Object.entries(similarities)
             .sort((a, b) => b[1] - a[1])
             .slice(0, topK)
-            .filter(item => item[1] > 0.5);
+            .filter(item => item[1] > 0.8);
 
         return similarWords;
     } catch (error) {
